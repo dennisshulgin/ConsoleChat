@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Server {
 
@@ -20,9 +21,7 @@ public class Server {
 
 	DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-	public Server() {
-		new Server(5555);
-	}
+	private final ReentrantLock lock = new ReentrantLock(true);
 
 	public Server(int port) {
 		this.port = port;
@@ -61,15 +60,38 @@ public class Server {
 		keepGoing = false;
 	}
 
-	public synchronized void broadcast(String message) {
-		LocalTime time = LocalTime.now();
-		String strTime = time.format(dtf);
-		for(int i = 0; i < clients.size(); i++) {
-			ClientThread client = clients.get(i);
-			if(!client.writeMessage(strTime + " " + client.getUsername() + " > " + message)) {
-				display(client.getUsername() + " disconnected from server.");
-				clients.remove(i);
+	public void broadcast(String username, String message) {
+		lock.lock();
+		try {
+			LocalTime time = LocalTime.now();
+			String strTime = time.format(dtf);
+			for(int i = 0; i < clients.size(); i++) {
+				ClientThread client = clients.get(i);
+				if(!client.writeMessage(strTime + " " + username + " > " + message)) {
+					display(client.getUsername() + " disconnected from server.");
+					clients.remove(i);
+				}
 			}
+		}finally {
+			lock.unlock();
+		}
+
+	}
+
+	public void remove(int id) {
+		lock.lock();
+		try {
+			String disconnectedClient = "";
+			for(int i = 0; i < clients.size(); i++) {
+				ClientThread client = clients.get(i);
+				if(client.id == id) {
+					disconnectedClient = client.getUsername();
+					clients.remove(i);
+					break;
+				}
+			}
+		}finally {
+			lock.unlock();
 		}
 
 	}
@@ -146,15 +168,20 @@ public class Server {
 			while(keepGoing) {
 				try {
 					String message = (String) is.readObject();
-					display(message);
-					broadcast(message);
+					if(message != null) {
+						display(message);
+						broadcast(name, message);
 
-					if(message.equals("exit"))
-						keepGoing = false;
+						if(message.equals("exit"))
+							keepGoing = false;
+					}
 				} catch(IOException | ClassNotFoundException e) {
 					display(e.getMessage());
+					break;
 				}
 			}
+			close();
+			remove(id);
 		}
 	}
 }

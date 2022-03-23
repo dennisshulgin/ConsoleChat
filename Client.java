@@ -58,15 +58,35 @@ public class Client {
 	}
 
 	public static void main(String... args) {
-		Client client = new Client("localhost", 5555, "Denis");
+		String username = "Anonymous";
+		if(args.length > 0) 
+			username = args[0];
+		Client client = new Client("localhost", 5555, username);
 		client.start();
 
 		try (Scanner scanner = new Scanner(System.in)){
 			while(true) {
-				System.out.print("Message: ");
+				System.out.print("> ");
 				String message = scanner.nextLine();
 				client.sendMessage(message);
+				if(message.equals("exit")) {
+					break;
+				}
 			}
+		}
+		client.disconnect();
+
+	}
+
+	public void disconnect() {
+		try {
+			if(is != null) 
+				is.close();
+			if(os != null)
+				os.close();
+			if(socket != null)
+				socket.close();
+		} catch(Exception e) {
 		}
 	}
 
@@ -80,9 +100,13 @@ public class Client {
 			while(true) {
 				try{
 					String message = (String) is.readObject();
-					display(message);
+					if(message != null) {
+						System.out.println(message);
+						System.out.print("> ");
+					}
 				} catch(ClassNotFoundException | IOException e) {
 					display(e.getMessage());
+					break;
 				}
 			}
 		}
