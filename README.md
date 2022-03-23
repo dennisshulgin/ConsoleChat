@@ -6,6 +6,7 @@ A server listens connection from clients.
 java Server [port]
 
 **Client run**:
-java Client [username]
+java Client [localhost] [port] [username] <br/>
+java Client [localhost] [port]
 
 a username by default Anonymous
