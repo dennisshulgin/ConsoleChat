@@ -20,6 +20,10 @@ public class Server {
 
 	DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
 
+	public Server() {
+		new Server(5555);
+	}
+
 	public Server(int port) {
 		this.port = port;
 		this.clients = new ArrayList<>();
@@ -33,8 +37,8 @@ public class Server {
 			while(keepGoing) {
 				Socket socket = serverSocket.accept();
 				ClientThread client = new ClientThread(socket, ++uniqueId);
-				Thread thread = new Thread(client);
-				thread.start();
+				client.start();
+				clients.add(client);
 			}
 
 			try {
@@ -62,7 +66,7 @@ public class Server {
 		String strTime = time.format(dtf);
 		for(int i = 0; i < clients.size(); i++) {
 			ClientThread client = clients.get(i);
-			if(client.writeMessage(strTime + " " + client.getUsername() + " > " + message)) {
+			if(!client.writeMessage(strTime + " " + client.getUsername() + " > " + message)) {
 				display(client.getUsername() + " disconnected from server.");
 				clients.remove(i);
 			}
@@ -82,7 +86,7 @@ public class Server {
 		server.start();
 	}
 	
-	public class ClientThread implements Runnable {
+	public class ClientThread extends Thread {
 		
 		Socket socket;
 		
@@ -101,6 +105,7 @@ public class Server {
 				is = new ObjectInputStream(socket.getInputStream());
 				
 				name = (String) is.readObject();
+				display(name + " connected to the chat.");
 
 			} catch(IOException | ClassNotFoundException e) {
 				display(e.getMessage());
@@ -138,17 +143,17 @@ public class Server {
 		@Override
 		public void run() {
 			boolean keepGoing = true;
-			try {
-				while(keepGoing) {
+			while(keepGoing) {
+				try {
 					String message = (String) is.readObject();
-				
+					display(message);
+					broadcast(message);
+
 					if(message.equals("exit"))
 						keepGoing = false;
+				} catch(IOException | ClassNotFoundException e) {
+					display(e.getMessage());
 				}
-			} catch(IOException | ClassNotFoundException e) {
-				display(e.getMessage());
-			} finally {
-				close();
 			}
 		}
 	}
